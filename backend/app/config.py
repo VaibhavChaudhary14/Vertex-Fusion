@@ -1,19 +1,12 @@
 # backend/app/config.py
-from pydantic import BaseSettings, AnyHttpUrl
-from typing import List, Optional
+from pydantic_settings import BaseSettings
+from pydantic import AnyHttpUrl
 
 class Settings(BaseSettings):
-    ENVIRONMENT: str = "development"
-    LOG_LEVEL: str = "info"
-
-    # Where the trained GNN model is stored
-    MODEL_PATH: str = "models/cheb_gnn.pt"
-
-    # Allowed CORS origins (frontends)
-    CORS_ORIGINS: List[AnyHttpUrl] = []
+    api_url: AnyHttpUrl
+    debug: bool = False
 
     class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+        env_file = ".env"  # optional, if you have environment variables
 
 settings = Settings()

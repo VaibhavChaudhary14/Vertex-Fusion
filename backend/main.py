@@ -5,17 +5,19 @@ from typing import Optional, List
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.schemas import SimulationRequest, SimulationResponse
 from app.inference import InferenceEngine
 
+# --- Logging ---
 logger = logging.getLogger("vertex_fusion_backend")
 logging.basicConfig(level=settings.LOG_LEVEL.upper())
 
+# --- Global inference engine ---
 inference_engine: Optional[InferenceEngine] = None
 
+# --- Lifespan for async startup/shutdown ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global inference_engine
@@ -27,22 +29,19 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         logger.info("Shutting down Vertex Fusion backend...")
-        # If you had any resources to close, do it here
+        # Clean up resources if needed
+        if inference_engine:
+            await inference_engine.shutdown() if hasattr(inference_engine, "shutdown") else None
 
+# --- FastAPI app ---
 app = FastAPI(
     title="Vertex Fusion GNN Backend",
     version="0.1.0",
     lifespan=lifespan,
 )
 
-# --- CORS ---
-
-# If CORS_ORIGINS env is empty, allow all (dev).
-# In production, set CORS_ORIGINS=["https://your-vercel-domain.vercel.app"]
-if settings.CORS_ORIGINS:
-    origins: List[str] = [str(o) for o in settings.CORS_ORIGINS]
-else:
-    origins = ["*"]
+# --- CORS middleware ---
+origins: List[str] = [str(o) for o in settings.CORS_ORIGINS] if settings.CORS_ORIGINS else ["*"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -53,7 +52,6 @@ app.add_middleware(
 )
 
 # --- Health endpoints ---
-
 @app.get("/health")
 async def health():
     return {"status": "ok", "env": settings.ENVIRONMENT}
@@ -65,21 +63,18 @@ async def ready():
     return {"status": "ready"}
 
 # --- Simulation endpoint ---
-
 @app.post("/simulate", response_model=SimulationResponse)
 async def simulate(req: SimulationRequest):
     if inference_engine is None:
         raise HTTPException(status_code=503, detail="Inference engine not ready")
-
     try:
-        result = inference_engine.run_simulation(req)
+        result = await inference_engine.run_simulation(req) if callable(getattr(inference_engine, "run_simulation", None)) else inference_engine.run_simulation(req)
         return SimulationResponse(request=req, result=result)
     except Exception as e:
         logger.exception("Error during simulation")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-# Optional root
+# --- Root endpoint ---
 @app.get("/")
 async def root():
     return {

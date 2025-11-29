@@ -1,7 +1,4 @@
 # backend/app/config.py
-from typing import List, Optional
-
-from pydantic import AnyHttpUrl
 from pydantic_settings import BaseSettings
 
 
@@ -10,16 +7,13 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "info"
 
-    # Where your trained Chebyshev GNN model lives
+    # Path to your trained GNN model
     MODEL_PATH: str = "models/cheb_gnn.pt"
 
-    # Frontend origins allowed to call this API
-    # In production, set this via env to your Vercel URL
-    CORS_ORIGINS: List[AnyHttpUrl] = []
-
-    # Optional: if you had this before, keep it but make it optional
-    # so Pydantic doesn't fail when env isn't set.
-    api_url: Optional[AnyHttpUrl] = None
+    # Simple CORS setting:
+    # "*"  -> allow all (default)
+    # "https://foo.com" or "https://foo.com,https://bar.com"
+    CORS_ORIGINS: str = "*"
 
     class Config:
         env_file = ".env"
